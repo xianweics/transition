@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <style>
+      .content {
+          height: 1000px;
+          background: white;
+      }
+
+      .box {
+          position: sticky;
+          border: 2px solid #333;
+          top: 100px;
+          width: 300px;
+          height: 500px;
+          margin: 0 auto;
+          font-size: 20px;
+      }
+  </style>
+</head>
+<body>
+<div class="content">
+  <div class="box j-box">
+    <div
+      class="j-demo1"
+      data-start="matrix(3, 0, 0, 3, 120, -80)"
+      data-end="matrix(1, 0, 0, 1, 120, 220)">Money</div>
+    <div
+      class="j-demo2"
+      data-start="matrix(3, 0, 0, 3, -150, -180)"
+      data-end="matrix(1, 0, 1, 1, 2, -100)">$</div>
+  </div>
+</div>
+</body>
+</html>
+
+<script>
+  class Animation {
+    #items = [];
+    #wrap = null;
+    #initialWrapTop = 0;
+    #config = {
+      maxHeight: 200,
+      endPositionName: 'data-end-position',
+      startPositionName: 'data-start-position'
+    };
+
+    constructor (wrap, config = {}) {
+      this.#wrap = wrap;
+      this.#initialWrapTop = +wrap.getBoundingClientRect().top;
+      this.#config = Object.assign({}, this.#config, config);
+      this.#items = config.doms || [];
+    }
+
+    add (item) {
+      const { startPositionName, endPositionName } = this.#config;
+      this.#items.push({
+        dom: item,
+        matrix: {
+          start: Animation.#getMatrix(item.getAttribute(startPositionName)),
+          end: Animation.#getMatrix(item.getAttribute(endPositionName))
+        }
+      });
+    }
+
+    start () {
+      this.#items.forEach(item => {
+        this.#render(item);
+        document.addEventListener('scroll', () => {
+          this.#render(item);
+        });
+      });
+    }
+
+    #render (item) {
+      const { maxHeight } = this.#config;
+      const offsetTop = this.#wrap.offsetTop;
+      const realOffsetTop = offsetTop - this.#initialWrapTop;
+      let scrollHeight = realOffsetTop;
+      if (realOffsetTop >= maxHeight) {
+        scrollHeight = maxHeight;
+      }
+      const { scaleX, scaleY, translateX, translateY, skewX, skewY } = this.calcPosition(scrollHeight, item);
+      item.dom.style.transform = `matrix(${scaleX}, ${skewY}, ${skewX}, ${scaleY}, ${translateX}, ${translateY})`;
+    }
+
+    calcPosition (scrollHeight, item) {
+      const {
+        scaleX: startScaleX, scaleY: startScaleY, translateX: startTranslateX,
+        translateY: startTranslateY, skewX: startSkewX, skewY: startSkewY
+      } = item.matrix.start;
+      const {
+        scaleX: endScaleX, scaleY: endScaleY, translateX: endTranslateX, translateY: endTranslateY,
+        skewX: endSkewX, skewY: endSkewY
+      } = item.matrix.end;
+      const { maxHeight } = this.#config;
+      const FIX_NUM = 4;
+      const scaleX = (startScaleX - scrollHeight * (startScaleX - endScaleX) / maxHeight).toFixed(FIX_NUM);
+      const scaleY = (startScaleY - scrollHeight * (startScaleY - endScaleY) / maxHeight).toFixed(FIX_NUM);
+      const translateX = (startTranslateX - scrollHeight * (startTranslateX - endTranslateX) / maxHeight).toFixed(FIX_NUM);
+      const translateY = (startTranslateY - scrollHeight * (startTranslateY - endTranslateY) / maxHeight).toFixed(FIX_NUM);
+      const skewX = (startSkewX - scrollHeight * (startSkewX - endSkewX) / maxHeight).toFixed(FIX_NUM);
+      const skewY = (startSkewY - scrollHeight * (startSkewY - endSkewY) / maxHeight).toFixed(FIX_NUM);
+      return {
+        scaleX, scaleY, translateX, translateY, skewX, skewY
+      };
+    }
+
+    static #getMatrix (rawMatrix) {
+      const matrix = rawMatrix.slice(7, rawMatrix.length - 1).split(',');
+      return {
+        scaleX: +matrix[0],
+        skewY: +matrix[1],
+        skewX: +matrix[2],
+        scaleY: +matrix[3],
+        translateX: +matrix[4],
+        translateY: +matrix[5]
+      };
+    }
+  }
+
+  const wrap = new Animation(document.querySelector('.j-box'), {
+    endPositionName: 'data-end',
+    startPositionName: 'data-start'
+  });
+  wrap.add(document.querySelector('.j-demo1'));
+  wrap.add(document.querySelector('.j-demo2'));
+  wrap.start();
+</script>
